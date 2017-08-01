@@ -14,23 +14,27 @@
 
 struct Transformation {
 
-    using Float = atoms::Fixed< 32, 32 >;
+    using Float = atoms::Fixed< 20, 12 >;
     using TMatrix = atoms::Matrix< Float, 3, 3 >;
     using Vector = atoms::Matrix< Float, 1, 3 >;
 
     void start() {
         _pref.begin( "LP" );
+        reset() // Until NVS works
         updateMatrix();
     }
 
     ImgPoint transform( ImgPoint x ) {
         Vector y = _matrix * Vector( { { Float( x.x ) }, { Float( x.y ) }, { Float( 1 ) } } );
-        int a = ( y[ 0 ][ 0 ] / y[ 2 ][ 0 ] ).to_signed();
-        const int cropTop = std::numeric_limits< int16_t >::max() * 0.95;
-        const int cropBottom = std::numeric_limits< int16_t >::min() * 0.95;
+        int64_t a = ( y[ 0 ][ 0 ] / y[ 2 ][ 0 ] ).to_signed();
+        int64_t b = ( y[ 1 ][ 0 ] / y[ 2 ][ 0 ] ).to_signed();
+        const int64_t cropTop = std::numeric_limits< int16_t >::max() * 0.95;
+        const int64_t cropBottom = -cropTop;
+        // Do skew separately, as it has problems with precision in the matrix form
+        a = a * ( 65535 * cropTop + _skewX * b ) / ( cropTop * 65535 );
+        b = b * ( 65535 * cropTop + _skewY * a ) / ( cropTop * 65535 );
         a = std::min( cropTop, a );
         a = std::max( cropBottom, a );
-        int b = ( y[ 1 ][ 0 ] / y[ 2 ][ 0 ] ).to_signed();
         b = std::min( cropTop, b );
         b = std::max( cropBottom, b );
         x.x = a;
@@ -46,6 +50,8 @@ struct Transformation {
     }
 
     void updateMatrix() {
+        for ( const auto& x : _params )
+            std::cout << x.first << " -> " << x.second << "\n";
         std::cout.flush();
         TMatrix tran = _getUnitMatrix();
         tran[ 0 ][ 2 ] = Float( load( "transX" ) );
@@ -63,23 +69,19 @@ struct Transformation {
         shear[ 0 ][ 1 ] = Float( load( "shearX" ) );
         shear[ 1 ][ 0 ] = Float( load( "shearY" ) );
 
-        TMatrix trap = _getUnitMatrix();
-        shear[ 2 ][ 0 ] = Float( load( "trapX" ) );
-        shear[ 2 ][ 1 ] = Float( load( "trapY" ) );
+        TMatrix skew = _getUnitMatrix();
+        skew[ 2 ][ 0 ] = Float( load( "skewX" ) );
+        skew[ 2 ][ 1 ] = Float( load( "skewY" ) );
+        // Do skew separately, as it has problems with precision in the matrix form
+        _skewX = load( "skewX" );
+        _skewY = load( "skewY" );
 
-        TMatrix trapMin = _getUnitMatrix();
-        trapMin[ 0 ][ 0 ] = Float( 2.0 / 4096 );
-        trapMin[ 1 ][ 1 ] = Float( 2.0 / 4096 );
+        TMatrix scale = _getUnitMatrix();
+        scale[ 0 ][ 0 ] = Float( load( "scaleX" ) );
+        scale[ 1 ][ 1 ] = Float( load( "scaleY" ) );
 
-        TMatrix trapMax = _getUnitMatrix();
-        trapMax[ 0 ][ 0 ] = Float( 4096 / 2.0 );
-        trapMax[ 1 ][ 1 ] = Float( 4096 / 2.0 );
-
-        _matrix = tran * trap * shear * rot;
-        std::cout << _matrix << "\n";
-        std::cout << trapMin << "\n";
-        std::cout << trapMax << "\n";
-        std::cout << ( trapMin * trapMax );
+        _matrix = tran * rot * shear * /* skew */ scale;
+        std::cout << "Transformation:\n" << scale << "\n";
         std::cout.flush();
     }
 
@@ -100,8 +102,10 @@ struct Transformation {
         store( "rot", 0 );
         store( "shearX", 0 );
         store( "shearY", 0 );
-        store( "trapX", 0 );
-        store( "trapY", 0 );
+        store( "skewX", 0 );
+        store( "skewY", 0 );
+        store( "scaleX", 1 );
+        store( "scaleY", 1 );
         updateMatrix();
     }
 
@@ -140,19 +144,32 @@ struct Transformation {
         return prev;
     }
 
-    std::pair< float, float > getTrapez() {
-        return { load( "trapX" ), load( "trapY") };
+    std::pair< float, float > getSkew() {
+        return { load( "skewX" ), load( "skewY") };
     }
 
-    std::pair< float, float > setTrapez( float x, float y ) {
-        auto prev = getTrapez();
-        store( "trapX", x );
-        store( "trapY", y );
+    std::pair< float, float > setSkew( float x, float y ) {
+        auto prev = getSkew();
+        store( "skewX", x );
+        store( "skewY", y );
+        updateMatrix();
+        return prev;
+    }
+
+    std::pair< float, float > getScale() {
+        return { load( "scaleX" ), load( "scaleY") };
+    }
+
+    std::pair< float, float > setScale( float x, float y ) {
+        auto prev = getScale();
+        store( "scaleX", x );
+        store( "scaleY", y );
         updateMatrix();
         return prev;
     }
 
     Preferences _pref;
     TMatrix _matrix;
+    int _skewX, _skewY;
     std::map< std::string, float > _params;
 };

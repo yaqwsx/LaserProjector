@@ -12,7 +12,7 @@
 #include "transformation.h"
 
 Worker idleWorker;
-Dispatcher dispatcher( 10000, GPIO_NUM_27 );
+Dispatcher dispatcher( 30000, GPIO_NUM_27 );
 FrameBuffer frameBuffer;
 IntDacDriver driver( GPIO_NUM_14 );
 NetSource netSource( 4242 );
@@ -61,9 +61,12 @@ Packet onPacket( Packet& p ) {
         case COMMAND_TRAN_SHEAR:
             Serial.println( "Shear" );
             return onTransformation( p, &Transformation::setShear, &Transformation::getShear );
-        case COMMAND_TRAN_TRAP:
-            Serial.println( "Trap" );
-            return onTransformation( p, &Transformation::setTrapez, &Transformation::getTrapez );
+        case COMMAND_TRAN_SKEW:
+            Serial.println( "Skew" );
+            return onTransformation( p, &Transformation::setSkew, &Transformation::getSkew );
+        case COMMAND_TRAN_SCALE:
+            Serial.println( "Scale" );
+            return onTransformation( p, &Transformation::setScale, &Transformation::getScale );
     }
     return Packet();
 }

@@ -61,7 +61,8 @@ commands are implemented, other commands are ignored.
     - payload is empty (only gets value) or a float with rotation in radians
     - response contains previous value
 - **13** - set/get XY shear
-- **14** - set/get XY trapezoiding
+- **14** - set/get XY skew (in range +- 655635)
+- **15** - set/get XY scale
 - **20** - ask for frame buffer state
     - payload is empty
     - response contains two `uint16_t` numbers - number of frames in the buffer

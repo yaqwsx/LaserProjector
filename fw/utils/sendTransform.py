@@ -27,8 +27,10 @@ elif cmd == "rotate":
     buffer = struct.pack("<BHBf", 128, 4, 12, float(sys.argv[4]))
 elif cmd == "shear":
     buffer = struct.pack("<BHBff", 128, 8, 13, float(sys.argv[4]), float(sys.argv[5]))
-elif cmd == "trap":
+elif cmd == "skew":
     buffer = struct.pack("<BHBff", 128, 8, 14, float(sys.argv[4]), float(sys.argv[5]))
+elif cmd == "scale":
+    buffer = struct.pack("<BHBff", 128, 8, 15, float(sys.argv[4]), float(sys.argv[5]))
 else:
     print("No command given")
     sys.exit(1)
