@@ -32,12 +32,39 @@ struct Frame {
 struct FrameBuffer {
     FrameBuffer( int maxCapacity = 10 )
         : _progress( 0 ),
-          _queue( xQueueCreate( maxCapacity, sizeof( Frame* ) ) )
+          _frameQueue( xQueueCreate( maxCapacity, sizeof( Frame* ) ) ),
+          _preprocessedQueue( xQueueCreate( 32, sizeof( ImgPoint ) ) )
     {}
 
-    ImgPoint nextFromIsr() {
+    template < typename F >
+    void start( F f ) {
+        _transform = f;
+        xTaskCreate( run, "FraBuf", 4096, this, 5, nullptr );
+    }
+
+    static void run( void* arg ) {
+        auto& self = *reinterpret_cast< FrameBuffer* >( arg );
+        self._run();
+    }
+
+    void _run() {
+        while ( true ) {
+            ImgPoint p = next();
+            p = _transform( p );
+            xQueueSend( _preprocessedQueue, &p, portMAX_DELAY );
+        }
+    }
+
+    ImgPoint IRAM_ATTR nextFromIsr() {
+        ImgPoint p;
+        auto ret = xQueueReceiveFromISR( _preprocessedQueue, &p, nullptr );
+        assert( ret == pdTRUE );
+        return p;
+    }
+
+    ImgPoint next() {
         if ( !_currentFrame ) {
-            _popNextFrameFromIsr();
+            _popNextFrame();
             if ( !_currentFrame )
                 return { 0, 0, 0 };
         }
@@ -48,14 +75,14 @@ struct FrameBuffer {
             if ( _currentFrame->repetition() )
                 _currentFrame->repetition()--;
             if ( _currentFrame->repetition() == 0 )
-                _popNextFrameFromIsr();
+                _popNextFrame();
         }
         return p;
     }
 
-    void _popNextFrameFromIsr() {
+    void _popNextFrame() {
         Frame* nextFramePtr = nullptr;
-        if ( xQueueReceiveFromISR( _queue, &nextFramePtr, 0 ) == pdFALSE )
+        if ( xQueueReceive( _frameQueue, &nextFramePtr, 0 ) == pdFALSE )
             return;
         _currentFrame.reset( nextFramePtr );
     }
@@ -63,7 +90,7 @@ struct FrameBuffer {
     bool push( Frame&& f ) {
         auto frame = std::make_unique< Frame >( std::move( f ) );
         auto* framePtr = frame.get();
-        if ( xQueueSend( _queue, &framePtr, 0 ) == pdTRUE ) {
+        if ( xQueueSend( _frameQueue, &framePtr, 0 ) == pdTRUE ) {
             frame.release();
             return true;
         }
@@ -72,5 +99,7 @@ struct FrameBuffer {
 
     std::unique_ptr< Frame > _currentFrame;
     int _progress;
-    QueueHandle_t _queue;
+    QueueHandle_t _frameQueue;
+    QueueHandle_t _preprocessedQueue;
+    std::function< ImgPoint( ImgPoint ) > _transform;
 };

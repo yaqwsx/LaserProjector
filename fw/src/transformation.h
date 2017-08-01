@@ -20,7 +20,7 @@ struct Transformation {
 
     void start() {
         _pref.begin( "LP" );
-        reset() // Until NVS works
+        reset(); // Until NVS works
         updateMatrix();
     }
 

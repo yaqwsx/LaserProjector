@@ -91,10 +91,13 @@ void setup() {
 
     transformation.start();
     driver.start();
+    frameBuffer.start( []( ImgPoint p ) -> ImgPoint {
+        return transformation.transform( p );
+    } );
     startWiFi( onWiFiConnect, onWiFiError );
 
     dispatcher.start( [] {
-        driver.show( transformation.transform( frameBuffer.nextFromIsr() ) );
+        driver.show( frameBuffer.nextFromIsr() );
     } );
 }
 
