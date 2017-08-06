@@ -3,8 +3,8 @@
 import sys
 from svg.path import parse_path
 
-segments = 1000
-size = 65000
+segments = 800
+size = 30000
 
 path = parse_path(sys.argv[1])
 points = [ path.point( x / float(segments) ) for x in range(segments) ]

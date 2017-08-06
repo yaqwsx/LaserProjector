@@ -11,10 +11,15 @@
 #include "commands.h"
 #include "transformation.h"
 
+
+static const float M_PI = 3.14;
+
 Worker idleWorker;
 Dispatcher dispatcher( 30000, GPIO_NUM_27 );
 FrameBuffer frameBuffer;
-IntDacDriver driver( GPIO_NUM_14 );
+// IntDacDriver driver( GPIO_NUM_14 );
+Dac8562Driver driver( GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_4, GPIO_NUM_18,
+        GPIO_NUM_5, GPIO_NUM_22 );
 NetSource netSource( 4242 );
 Transformation transformation;
 
@@ -87,7 +92,27 @@ void onWiFiError( const char* msg ) {
 void setup() {
     nvs_flash_init();
     Serial.begin( 115200 );
-    Serial.println( "Starting the whole app" );
+    Serial.println( "Starting the whole app 2" );
+
+    /*Dac8562Driver d( GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_4, GPIO_NUM_18,
+        GPIO_NUM_5, GPIO_NUM_22 );
+    d.start();
+    float progress = 0;
+    float radius = 0;
+    while( true ) {
+        if ( progress >= 2 * M_PI )
+            progress -= 2 * M_PI;
+        progress += 2* M_PI / 1000;
+        radius += 1;
+        if ( radius > 60000)
+            radius = 0;
+        float r = radius > 30000 ? 60000 - radius : radius;
+        ImgPoint p;
+        p.x = r * sin( progress );
+        p.y = r * cos( progress );
+
+        d.show( p );
+    }*/
 
     transformation.start();
     driver.start();
