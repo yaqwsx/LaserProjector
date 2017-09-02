@@ -6,7 +6,7 @@ from svg.path import parse_path
 segments = 800
 size = 30000
 
-path = parse_path(sys.argv[1])
+path = parse_path(open(sys.argv[1], 'r').read())
 points = [ path.point( x / float(segments) ) for x in range(segments) ]
 points = [ (x.real, x.imag) for x in points]
 
